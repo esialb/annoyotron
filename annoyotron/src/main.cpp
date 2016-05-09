@@ -11,24 +11,29 @@
 
 #include <EEPROM.h>
 
+#define ACTIVE_SSID "annoyotron"
+#define ACTIVE_BSSID_PREFIX "1A:FE:34:"
+
 #define DEBUG_SHOULD_EMIT (random(100) == 0)
 #define SHOULD_EMIT (random(3000) == 0)
 
-#define ACTIVATION_WAIT_MAX 10000
+#define ACTIVATION_WAIT_MIN 3000
+#define ACTIVATION_WAIT_MAX 15000
+
+#define WASNT_FOUND_MAX 3
+
+#define ACTIVATION_WAIT_STEP_AVERAGE 750
+#define ACTIVATION_WAIT_STEP_VARIANCE 250
 
 bool active;
 int32_t activation_wait;
-int analog;
-bool first_loop;
-
+int last_analog;
 
 bool debug;
 
 int wasnt_found;
 
 ESP8266WiFiScanClass scan;
-
-const String bssid_prefix("18:FE:34:");
 
 bool should_become_inactive();
 
@@ -76,15 +81,15 @@ void setup() {
 	EEPROM.write(1, (n >> 8) & 0xff);
 	EEPROM.commit();
 
-	activation_wait = random(ACTIVATION_WAIT_MAX);
+	activation_wait = ACTIVATION_WAIT_MIN + random(ACTIVATION_WAIT_MAX - ACTIVATION_WAIT_MIN);
 
 	digitalWrite(D0, HIGH);
 	digitalWrite(D4, LOW);
 
-	wasnt_found = 0;
-	first_loop = true;
+	wasnt_found = -1;
 
 	if(debug) {
+		delay(5000);
 		Serial.begin(115200);
 		Serial.printf("\r\nannoyotron startup\r\n");
 	}
@@ -99,18 +104,16 @@ void loop() {
 
 bool should_become_inactive() {
 	//	return false;
-	int was = analog;
-	analog = analogRead(A0);
-	return abs(was - analog) > (abs(was) + abs(analog)) / 10;
+	int was = last_analog;
+	last_analog = analogRead(A0);
+	return abs(was - last_analog) > (abs(was) + abs(last_analog)) / 10;
 }
 
 void emit_annoyance() {
 	if(debug) {
 		Serial.printf("Emitting annoyance\r\n");
 	}
-	flash_pin(D0, 1, 500, 500);
-	flash_pin(D0, 5, 50, 50);
-	flash_pin(D0, 10, 20, 20);
+	flash_pin(D0, 75, 20, 20);
 }
 
 void active_loop() {
@@ -130,9 +133,14 @@ void active_loop() {
 
 bool wifi_scan() {
 	bool found = false;
-	int scanned = scan.scanNetworks();
+	int scanned = scan.scanNetworks(false, true);
 	for(int i = 0; i < scanned; i++) {
-		if(scan.SSID(i) == "annoyotron" || scan.BSSIDstr(i).startsWith(bssid_prefix)) {
+		if(scan.SSID(i) == ACTIVE_SSID) {
+			found = true;
+			break;
+		}
+		String bssid = scan.BSSIDstr(i);
+		if(bssid.startsWith(ACTIVE_BSSID_PREFIX)) {
 			found = true;
 			break;
 		}
@@ -142,26 +150,26 @@ bool wifi_scan() {
 }
 
 void inactive_loop() {
-	bool was_first_loop = first_loop;
-	first_loop = false;
-
 	bool found = wifi_scan();
 
 	if(digitalRead(D4) == LOW)
 		digitalWrite(D4, HIGH);
 
 	if(found) {
-		activation_wait = random(ACTIVATION_WAIT_MAX);
-		if(was_first_loop) {
+		if(debug && (wasnt_found <= (WASNT_FOUND_MAX - 2))) {
+			Serial.printf("AP found, resetting activation wait\r\n");
+		}
+		activation_wait = ACTIVATION_WAIT_MIN + random(ACTIVATION_WAIT_MAX - ACTIVATION_WAIT_MIN);
+		if(wasnt_found == -1) {
 			if(debug) {
 				Serial.printf("First loop found AP\r\n");
 			}
-			flash_pin(D4, 5, 10, 200);
+			flash_pin(D4, 12, 20, 230);
 		}
-		wasnt_found = 3;
+		wasnt_found = WASNT_FOUND_MAX;
 		return;
 	} else {
-		if(wasnt_found == 1) {
+		if(wasnt_found == WASNT_FOUND_MAX - 2) {
 			if(debug) {
 				Serial.printf("Coordinated annoyance emission\r\n");
 			}
@@ -169,14 +177,16 @@ void inactive_loop() {
 		}
 		if(wasnt_found > 0)
 			wasnt_found--;
+		else
+			wasnt_found = 0;
 		if(activation_wait <= 0) {
 			become_active();
 			return;
 		} else {
-			if(debug) {
+			if(debug && (wasnt_found <= (WASNT_FOUND_MAX - 2))) {
 				Serial.printf("No AP, remaining activation wait: %d\r\n", activation_wait);
 			}
-			int d = random(1000);
+			int d = ACTIVATION_WAIT_STEP_AVERAGE - ACTIVATION_WAIT_STEP_VARIANCE + random(2 * ACTIVATION_WAIT_STEP_VARIANCE);
 			activation_wait -= d;
 			delay(d);
 		}
@@ -189,9 +199,15 @@ void become_active() {
 	}
 	active = true;
 	wasnt_found = false;
-	WiFi.softAP("annoyotron", NULL, 1 + random(12), 1);
-	analog = analogRead(A0);
-	flash_pin(D4, 5, 80, 20);
+	WiFi.softAP(ACTIVE_SSID, NULL, 1 + random(12), 1);
+	last_analog = analogRead(A0);
+	if(debug) {
+		Serial.printf("Active AP BSSID: %s\r\n", WiFi.softAPmacAddress().c_str());
+	}
+	flash_pin(D4, 4, 150, 100);
+	flash_pin(D4, 10, 20, 80);
+	flash_pin(D4, 4, 150, 100);
+	emit_annoyance();
 }
 
 void become_inactive() {
@@ -200,7 +216,9 @@ void become_inactive() {
 	}
 	active = false;
 	WiFi.softAPdisconnect(true);
+	wasnt_found = 0;
 	activation_wait = ACTIVATION_WAIT_MAX + random(ACTIVATION_WAIT_MAX);
-	if(debug)
-		flash_pin(D4, 5, 10, 200);
+	if(debug) {
+		flash_pin(D4, 12, 20, 230);
+	}
 }
