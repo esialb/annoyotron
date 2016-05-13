@@ -17,7 +17,7 @@
 #define ACTIVE_BSSID_PREFIX "1A:FE:34:"
 
 #define DEBUG_SHOULD_EMIT (random(100) == 0)
-#define SHOULD_EMIT (random(300000) < 1000)
+#define SHOULD_EMIT (random(3000) == 0)
 
 #define ACTIVATION_WAIT_MIN 3000
 #define ACTIVATION_WAIT_MAX 15000
@@ -67,12 +67,12 @@ void flash_pin(int pin) {
 }
 
 void setup() {
-	pinMode(D0, OUTPUT);
+	pinMode(D3, OUTPUT);
 	pinMode(D4, OUTPUT);
 	pinMode(A0, INPUT);
 	pinMode(D5, INPUT_PULLUP);
 
-	digitalWrite(D0, HIGH);
+	digitalWrite(D3, HIGH);
 
 	debug = (digitalRead(D5) == LOW);
 
@@ -106,7 +106,7 @@ void setup() {
 	// If gain = false (0), device is set to low gain (1X)
 	// If gain = high (1), device is set to high gain (16X)
 
-	gain = 0;
+	gain = 1;
 
 	// If time = 0, integration will be 13.7ms
 	// If time = 1, integration will be 101ms
@@ -169,9 +169,9 @@ void emit_annoyance() {
 	if(debug) {
 		Serial.printf("Emitting annoyance\r\n");
 	}
-	digitalWrite(D0, LOW);
+	digitalWrite(D3, LOW);
 	delay(1000);
-	digitalWrite(D0, HIGH);
+	digitalWrite(D3, HIGH);
 }
 
 void active_loop() {
