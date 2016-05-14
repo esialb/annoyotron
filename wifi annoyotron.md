@@ -31,8 +31,8 @@ you want them in bulk.
 
 ## source code
 
-[Source code](http://github.com/esialb/annoyotron/) is available on github.
-The code is an [Eclipse](http://www.eclipse.org/) CDT project built with
+[source code](http://github.com/esialb/annoyotron/) is available on github.
+the code is an [Eclipse](http://www.eclipse.org/) CDT project built with
 [PlatformIO](http://platformio.org/).
 
 ## pseudocode
