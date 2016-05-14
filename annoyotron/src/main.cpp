@@ -14,6 +14,7 @@
 #include "SparkFunTSL2561.h"
 
 #define ACTIVE_SSID "annoyotron"
+#define DEBUG_SSID "annoyotron_debug"
 #define ACTIVE_BSSID_PREFIX "1A:FE:34:"
 
 #define DEBUG_SHOULD_EMIT (random(100) == 0)
@@ -51,6 +52,8 @@ void inactive_loop();
 void become_active();
 void become_inactive();
 
+bool wifi_debug_scan();
+
 void flash_pin(int pin, int n, int low_delay, int high_delay) {
 	int was = digitalRead(pin);
 	for(int i = 0; i < n; i++) {
@@ -67,14 +70,21 @@ void flash_pin(int pin) {
 }
 
 void setup() {
+	pinMode(D0, OUTPUT);
 	pinMode(D3, OUTPUT);
 	pinMode(D4, OUTPUT);
 	pinMode(A0, INPUT);
 	pinMode(D5, INPUT_PULLUP);
+	pinMode(D6, OUTPUT);
 
+	digitalWrite(D0, HIGH);
 	digitalWrite(D3, HIGH);
 
+	digitalWrite(D6, LOW);
 	debug = (digitalRead(D5) == LOW);
+	if(wifi_debug_scan())
+		debug = true;
+
 
 	active = false;
 
@@ -168,10 +178,14 @@ bool should_become_inactive() {
 void emit_annoyance() {
 	if(debug) {
 		Serial.printf("Emitting annoyance\r\n");
+		digitalWrite(D0, LOW);
 	}
 	digitalWrite(D3, LOW);
 	delay(1000);
 	digitalWrite(D3, HIGH);
+	if(debug) {
+		digitalWrite(D0, HIGH);
+	}
 }
 
 void active_loop() {
@@ -187,6 +201,19 @@ void active_loop() {
 			emit_annoyance();
 	}
 	delay(100);
+}
+
+bool wifi_debug_scan() {
+	bool found = false;
+	int scanned = scan.scanNetworks(false, true);
+	for(int i = 0; i < scanned; i++) {
+		if(scan.SSID(i) == DEBUG_SSID) {
+			found = true;
+			break;
+		}
+	}
+	scan.scanDelete();
+	return found;
 }
 
 bool wifi_scan() {
