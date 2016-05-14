@@ -24,3 +24,36 @@ you want them in bulk.
 - buzzer
 - breadboard + wires
 - battery holder
+
+## pseudocode
+
+```
+If IsActive: Then # If currently active
+  If LuminosityChanged(): Then # Check if the light sensor detected a change
+    # Become inactive
+    IsActive = False
+    DisableWifiAccessPoint()
+    Return
+  EndIf
+  If ShouldEmitAnnoyance(): Then # Probabilistic annoyance emission
+    EmitAnnoyance()
+  EndIf
+  Delay(100ms)
+Else: # Not currently active
+  If ScanForWifiAccessPoint(): Then # Look for another active node
+    ActivationWait = LargeRandomWaitTime() # Pick a random wait time for later
+  Else: # If there is no active node...
+    If ActivationWait <= 0: Then # ... And if we are done waiting
+      # Become active
+      IsActive = True
+      EnableWifiAccessPoint()
+      EmitAnnoyance()
+      Return
+    EndIf
+    # Otherwise wait a random time
+    SmallWait = SmallRandomWaitTime()
+    Delay(SmallWait)
+    ActivationWait = ActivationWait - SmallWait
+  EndIf # End if no active node
+EndIf # End if not currently active
+```
