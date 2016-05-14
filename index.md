@@ -25,6 +25,16 @@ you want them in bulk.
 - breadboard + wires
 - battery holder
 
+## hookup
+
+![circuit](circuit.png)
+
+## source code
+
+[Source code](http://github.com/esialb/annoyotron/) is available on github.
+The code is an [Eclipse](http://www.eclipse.org/) CDT project built with
+[PlatformIO](http://platformio.org/).
+
 ## pseudocode
 
 ```
