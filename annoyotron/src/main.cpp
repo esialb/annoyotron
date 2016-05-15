@@ -172,6 +172,8 @@ double read_lux() {
 bool should_become_inactive() {
 	//	return false;
 	double lux = read_lux();
+	if(lux == -1)
+		return true;
 	return abs(lux - last_lux) > (abs(lux) + abs(last_lux)) / 10;
 }
 
